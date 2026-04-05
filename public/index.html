@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Dashboard - Product & Category</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { darkMode: 'class' }
+  </script>
+</head>
+<body class="bg-gray-100 dark:bg-slate-900 text-gray-900 dark:text-white min-h-screen">
+
+<div class="flex h-screen">
+
+  <!-- LEFT PANEL: Products -->
+  <div class="w-1/3 p-6 overflow-y-auto border-r dark:border-slate-700 space-y-8">
+
+    <!-- PRODUCT CRUD -->
+    <div>
+      <h2 class="text-xl font-bold mb-3">🛒 Products</h2>
+
+      <div class="bg-white dark:bg-slate-800 p-4 rounded-xl shadow mb-4">
+        <input id="prod_name" placeholder="Product name" class="w-full mb-2 p-2 rounded border dark:bg-slate-700" />
+        <input id="prod_price" type="number" placeholder="Price" class="w-full mb-2 p-2 rounded border dark:bg-slate-700" />
+        <textarea id="prod_description" placeholder="Description" class="w-full mb-2 p-2 rounded border dark:bg-slate-700"></textarea>
+
+        <select id="prod_category" class="w-full mb-2 p-2 rounded border dark:bg-slate-700"></select>
+
+        <button onclick="saveProduct()" class="bg-green-500 text-white px-4 py-2 rounded">Save Product</button>
+      </div>
+
+      <table class="w-full bg-white dark:bg-slate-800 rounded-xl overflow-hidden">
+        <thead class="bg-gray-200 dark:bg-slate-700">
+          <tr>
+            <th class="p-2">ID</th>
+            <th class="p-2">Name</th>
+            <th class="p-2">Category</th>
+            <th class="p-2">Price</th>
+            <th class="p-2">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="productTable"></tbody>
+      </table>
+
+      <div id="product-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg w-96">
+          <h2 id="modal-title" class="text-lg font-bold mb-2 text-gray-900 dark:text-white"></h2>
+          <p id="modal-category" class="mb-2 text-gray-700 dark:text-gray-300"></p>
+          <p id="modal-price" class="mb-2 text-gray-700 dark:text-gray-300"></p>
+          <p id="modal-stock" class="mb-2 text-gray-700 dark:text-gray-300"></p>
+          <p id="modal-description" class="mb-2 text-gray-700 dark:text-gray-300"></p>
+          <p id="modal-ai-description" class="mt-4 font-semibold text-green-600 dark:text-green-400"></p>
+          <button onclick="closeModal()" class="mt-4 px-4 py-2 bg-blue-500 text-white rounded">Close</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- MIDDLE PANEL: Products FILTER -->
+
+  <div class="w-1/3 p-6 overflow-y-auto border-r dark:border-slate-700 space-y-8">
+
+    <!-- PRODUCT FILTER -->
+    <div>
+      <h2 class="text-xl font-bold mb-3">🛒 Products</h2>
+
+      <div class="bg-white dark:bg-slate-800 p-4 rounded-xl shadow mb-4">
+        <div class="mb-4 flex gap-2">
+          <input type="text" id="ai-filter-input" placeholder="Type command e.g. show me electronics products" class="p-2 border rounded w-full dark:bg-slate-700" />
+          <button onclick="applyAIFilter()" class="px-4 py-2 bg-blue-500 text-white rounded">Filter</button>
+        </div>
+      </div>
+
+      <table class="w-full bg-white dark:bg-slate-800 rounded-xl overflow-hidden">
+        <thead class="bg-gray-200 dark:bg-slate-700">
+          <tr>
+            <th class="p-2">ID</th>
+            <th class="p-2">Name</th>
+            <th class="p-2">Category</th>
+            <th class="p-2">Price</th>
+            <th class="p-2">Stock</th>
+            <th class="p-2">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="products-body"></tbody>
+      </table>
+    </div>
+
+  </div>
+
+  <!-- RIGHT PANEL: CHAT -->
+  <div class="w-1/3 flex flex-col p-6">
+    <h1 class="text-xl font-bold mb-4">💬 AI Chat</h1>
+
+    <div id="chatBox" class="flex-1 bg-white dark:bg-slate-800 rounded-xl p-4 overflow-y-auto mb-4 space-y-2"></div>
+
+    <textarea id="prompt" class="w-full p-3 rounded-xl border dark:bg-slate-700 mb-2" rows="2" placeholder="Type message..."></textarea>
+    <button onclick="send()" class="bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-xl">Send</button>
+  </div>
+
+</div>
+
+<script>
+  let editProdId = null;
+  const baseUrl = `${window.location.protocol}//${window.location.host}`;
+
+  // ===================== CATEGORY =====================
+  async function loadCategories() {
+    const res = await fetch(`${baseUrl}/categories`);
+    const data = await res.json();
+
+    const select = document.getElementById('prod_category');
+    select.innerHTML = '<option value="">Select category</option>';
+
+    data.forEach(cat => {
+      select.innerHTML += `<option value="${cat.id}">${cat.name}</option>`;
+    });
+  }
+  // ===================== CATEGORY END =====================
+
+
+  // ===================== PRODUCT =====================
+  async function loadProducts() {
+    const res = await fetch(`${baseUrl}/products`);
+    const data = await res.json();
+
+    const table = document.getElementById('productTable');
+    table.innerHTML = 'Loading...';
+    table.innerHTML = '';
+
+    data.forEach(prod => {
+      table.innerHTML += `
+        <tr class="border-t dark:border-slate-700">
+          <td class="p-2">${prod.id}</td>
+          <td class="p-2">${prod.name}</td>
+          <td class="p-2">${prod.category?.name || ''}</td>
+          <td class="p-2">${prod.price}</td>
+          <td class="p-2">
+            <button onclick="editProduct(${prod.id}, '${prod.name}', ${prod.price}, '${prod.description}', ${prod.category?.id || ''})"
+              class="bg-yellow-500 text-white px-2 py-1 rounded">Edit</button>
+            <button onclick="deleteProduct(${prod.id})"
+              class="bg-red-500 text-white px-2 py-1 rounded">Delete</button>
+
+            <button onclick="viewProduct(${prod.id})" class="px-2 py-1 bg-green-500 text-white rounded">View</button>
+          </td>
+        </tr>
+      `;
+    });
+  }
+
+  async function viewProduct(id) {
+    const modal = document.getElementById('product-modal');
+    const title = document.getElementById('modal-title');
+    const category = document.getElementById('modal-category');
+    const price = document.getElementById('modal-price');
+    const stock = document.getElementById('modal-stock');
+    const description = document.getElementById('modal-description');
+    const aiDescription = document.getElementById('modal-ai-description');
+
+    // Show loading
+    aiDescription.innerText = '🤖 Generating AI description...';
+
+    try {
+      const res = await fetch(`${baseUrl}/products/ai-description/${id}`);
+      const data = await res.json();
+
+      title.innerText = data.product.name;
+      category.innerText = `Category: ${data.product.category.name}`;
+      price.innerText = `Price: ${data.product.price}`;
+      stock.innerText = `Stock: ${data.product.stock}`;
+      description.innerText = `Description: ${data.product.description || 'No description'}`;
+      aiDescription.innerText = data.ai_description;
+
+      modal.classList.remove('hidden');
+
+    } catch (err) {
+      console.error(err);
+      aiDescription.innerText = '❌ Error fetching AI description';
+      modal.classList.remove('hidden');
+    }
+  }
+
+  async function applyAIFilter() {
+    const query = document.getElementById('ai-filter-input').value.trim();
+    if (!query) return loadProducts(); // if empty, show all
+
+    const tbody = document.getElementById('products-body');
+    tbody.innerHTML = '🤖 Filtering...';
+
+    try {
+      const res = await fetch(`${baseUrl}/products/filter`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query }),
+      });
+      const products = await res.json();
+
+      if (!products.length) {
+        tbody.innerHTML = '<tr><td colspan="5">No products match your query</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = products
+        .map(
+          (p) => `
+        <tr class="border-b">
+          <td class="px-4 py-2">${p.id}</td>
+          <td class="px-4 py-2">${p.name}</td>
+          <td class="px-4 py-2">${p.category.name}</td>
+          <td class="px-4 py-2">${p.price}</td>
+          <td class="px-4 py-2">${p.stock}</td>
+          <td class="px-4 py-2">
+            <button onclick="viewProduct(${p.id})" class="px-2 py-1 bg-green-500 text-white rounded">View</button>
+          </td>
+        </tr>
+      `
+        )
+        .join('');
+    } catch (err) {
+      console.error(err);
+      tbody.innerHTML = '<tr><td colspan="5">Error filtering products</td></tr>';
+    }
+  }
+  function closeModal() {
+    document.getElementById('product-modal').classList.add('hidden');
+  }
+  function editProduct(id, name, price, description, categoryId) {
+    document.getElementById('prod_name').value = name;
+    document.getElementById('prod_price').value = price;
+    document.getElementById('prod_description').value = description;
+    document.getElementById('prod_category').value = categoryId || '';
+    editProdId = id;
+  }
+  
+  async function saveProduct() {
+    const name = document.getElementById('prod_name').value;
+    const price = parseFloat(document.getElementById('prod_price').value);
+    const description = document.getElementById('prod_description').value;
+    const category_id = document.getElementById('prod_category').value;
+
+    if (!name || !price || !category_id) {
+      return alert('Name, price, and category are required');
+    }
+
+    const payload = {
+      name,
+      price,
+      description,
+      category_id
+    };
+
+    const url = editProdId ? `${baseUrl}/products/${editProdId}` : `${baseUrl}/products`;
+    const method = editProdId ? 'PATCH' : 'POST';
+
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || 'Failed to save product');
+      }
+
+      // Reset form
+      editProdId = null;
+      document.getElementById('prod_name').value = '';
+      document.getElementById('prod_price').value = '';
+      document.getElementById('prod_description').value = '';
+      document.getElementById('prod_category').value = '';
+
+      // Reload products
+      loadProducts();
+
+    } catch (err) {
+      console.error('❌ Error saving product:', err);
+      alert('Error saving product: ' + err.message);
+    }
+  }
+
+  async function deleteProduct(id) {
+    await fetch(`${baseUrl}/products/${id}`, { method: 'DELETE' });
+    loadProducts();
+  }
+
+  // ===================== CHAT =====================
+  async function send() {
+    const prompt = document.getElementById('prompt').value;
+    const chatBox = document.getElementById('chatBox');
+
+    if (!prompt.trim()) return;
+
+    chatBox.innerHTML += `<div class="text-right"><span class="bg-blue-500 text-white px-3 py-2 rounded-lg inline-block">${prompt}</span></div>`;
+    document.getElementById('prompt').value = '';
+    chatBox.innerHTML += `<div id="loading">🤔 Thinking...</div>`;
+    chatBox.scrollTop = chatBox.scrollHeight;
+
+    try {
+      const res = await fetch(`${baseUrl}/gemini/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt })
+      });
+      const data = await res.json();
+
+      document.getElementById('loading').remove();
+      chatBox.innerHTML += `<div class="text-left"><span class="bg-gray-300 dark:bg-slate-700 px-3 py-2 rounded-lg inline-block">${data.data}</span></div>`;
+      chatBox.scrollTop = chatBox.scrollHeight;
+
+    } catch (err) {
+      document.getElementById('loading').innerText = '❌ Error';
+    }
+  }
+
+  // ===================== THEME =====================
+  function toggleTheme() {
+    const html = document.documentElement;
+    html.classList.toggle('dark');
+    localStorage.setItem('theme', html.classList.contains('dark') ? 'dark' : 'light');
+  }
+
+  (function () {
+    if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark');
+    loadCategories();
+    loadProducts();
+  })();
+
+</script>
+
+</body>
+</html>

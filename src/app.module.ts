@@ -8,6 +8,7 @@ import { AppService } from './app.service';
 import { GeminiModule } from './gemini/gemini.module';
 import { CategoriesModule } from './categories/categories.module';
 import { ProductsModule } from './products/products.module';
+import { UiModule } from './ui/ui.module';
 
 @Module({
   imports: [GeminiModule,
@@ -26,11 +27,13 @@ import { ProductsModule } from './products/products.module';
       password: process.env.DB_PASSWORD,
       database: process.env.DB_NAME,
       autoLoadEntities: true,
-      synchronize: true, // dev only
+      // dropSchema: true,
+      // synchronize: true, // dev only
     }),
 
     CategoriesModule,
     ProductsModule,
+    UiModule,
 
   ],
   controllers: [AppController],

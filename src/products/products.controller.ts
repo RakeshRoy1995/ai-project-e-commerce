@@ -36,7 +36,7 @@ export class ProductsController {
     // Build prompt for Gemini
     const prompt = `
     You are a product assistant. 
-    From the following list of products (name, price, category), select the products that match the user's request:
+    From the following list of products (name, price, category , stock), select the products that match the user's request:
     User request: "${query}"
 
     Products:
@@ -66,7 +66,7 @@ export class ProductsController {
     // filteredIds contains names from AI
     const filteredNames: any[] = filteredIds;
     // Filter products safely by name
-    const filteredProducts = allProducts.filter((p) => filteredNames.includes(p.name));
+    const filteredProducts = allProducts.filter((p) => filteredNames.includes(p.name || p.id ));
     return filteredProducts;
   }
 

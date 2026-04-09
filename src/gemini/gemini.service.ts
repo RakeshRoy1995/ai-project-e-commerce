@@ -30,8 +30,6 @@ export class GeminiService {
 
     // Combine system + user into a single string (Gemini doesn't support role arrays)
     const fullPrompt = `
-    You are an AI product description assistant.
-    Write a short, catchy product description for the following product/products:
 
     ${prompt}
     `;

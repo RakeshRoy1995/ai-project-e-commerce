@@ -5,12 +5,13 @@ import { ProductsController } from './products.controller';
 import { Product } from './entities/product.entity';
 import { Category } from '../categories/entities/category.entity';
 import { GeminiService } from '../gemini/gemini.service';
+import { ProductSeeder } from './product.seeder';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Product, Category]), 
   ],
   controllers: [ProductsController],
-  providers: [ProductsService, GeminiService],
+  providers: [ProductsService, GeminiService , ProductSeeder],
 })
 export class ProductsModule {}
